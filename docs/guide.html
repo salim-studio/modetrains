@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guide — modetrains</title>
+<meta name="description" content="modetrains user guide: install, quickstart, CLI, configuration and API reference.">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+<div class="sites"><span>modetrains</span><a href="https://salim-studio.github.io/text_tools/">TEXT</a><a href="https://salim-studio.github.io/pdf-suite/">PDF</a><a href="https://github.com/salim-studio/modetrains">GitHub</a></div>
+<div>v0.1.0 · MIT</div>
+</div></div>
+<header class="nav"><div class="wrap">
+<a class="logo" href="index.html"><img src="assets/logo.svg" alt="modetrains logo">mode<span>trains</span></a>
+<div class="navlinks">
+<a class="btn ghost" href="index.html">Home</a>
+<a class="btn ghost" href="https://github.com/salim-studio/modetrains">GitHub</a>
+</div></div></header>
+<section class="hero"><div class="wrap">
+<span class="badge">User guide</span>
+<h1>From install to trained model</h1>
+<p>Everything you need: installation, the 3-line quickstart, the CLI, every setting, and the full API.</p>
+</div></section>
+
+<div class="wrap">
+<section class="section"><h2>1 · Install</h2><p class="sub">PyTorch first (CUDA build), then the library.</p>
+<div class="codewrap"><button class="copybtn" data-copy="g1">Copy</button><pre class="code" id="g1">pip install torch --index-url https://download.pytorch.org/whl/cu121
+git clone https://github.com/salim-studio/modetrains.git
+<span class="k">cd</span> modetrains
+pip install -r requirements.txt
+pip install -e .
+<span class="c"># optional, for maximum speed</span>
+pip install flash-attn --no-build-isolation
+pip install liger-kernel</pre></div></section>
+
+<section class="section"><h2>2 · Train (Python)</h2><p class="sub">The fastest path: preset config, fast loader, packed SFT.</p>
+<div class="codewrap"><button class="copybtn" data-copy="g2">Copy</button><pre class="code" id="g2"><span class="k">from</span> modetrains <span class="k">import</span> ModeTrainsConfig, FastModel, train_sft, save_merged
+
+cfg = ModeTrainsConfig.<span class="f">fast_default</span>(<span class="s">"meta-llama/Meta-Llama-3-8B-Instruct"</span>, max_seq_length=2048)
+model, tok = FastModel.<span class="f">from_pretrained</span>(cfg)
+model = FastModel.<span class="f">get_peft_model</span>(model, cfg)
+
+<span class="k">from</span> datasets <span class="k">import</span> Dataset
+<span class="k">from</span> modetrains.data <span class="k">import</span> format_alpaca
+texts = [<span class="f">format_alpaca</span>(<span class="s">"Explain gravity"</span>, <span class="s">""</span>, <span class="s">"Mass attracts mass..."</span>)] * 100
+ds = Dataset.<span class="f">from_dict</span>({<span class="s">"text"</span>: texts})
+
+trainer, stats = <span class="f">train_sft</span>(model, tok, ds, cfg, dataset_text_field=<span class="s">"text"</span>)
+<span class="f">save_merged</span>(model, tok, <span class="s">"outputs"</span>)</pre></div></section>
+
+<section class="section"><h2>3 · Train &amp; infer (CLI)</h2><p class="sub">No code needed for standard runs.</p>
+<div class="codewrap"><button class="copybtn" data-copy="g3">Copy</button><pre class="code" id="g3">python -m modetrains info
+python -m modetrains train --model meta-llama/Meta-Llama-3-8B-Instruct \
+  --data yahma/alpaca-cleaned --steps 60 --out outputs
+python -m modetrains infer --model outputs --prompt <span class="s">"What is quantization?"</span></pre></div></section>
+
+<section class="section"><h2>4 · Configuration</h2><p class="sub">The settings that matter most.</p>
+<table class="spec">
+<tr><th>Setting</th><th>Default</th><th>Effect</th></tr>
+<tr><td><code>model_name</code></td><td>Llama-3-8B-Instruct</td><td>Any causal-LM id from the Hub</td></tr>
+<tr><td><code>max_seq_length</code></td><td>2048</td><td>Context window; larger = more VRAM</td></tr>
+<tr><td><code>load_in_4bit</code></td><td>true</td><td>NF4 quantization, ~70% less VRAM</td></tr>
+<tr><td><code>packing</code></td><td>true</td><td>Fill every sequence, up to 2–3x faster</td></tr>
+<tr><td><code>lora.r / alpha</code></td><td>16 / 16</td><td>Adapter capacity (rsLoRA on)</td></tr>
+<tr><td><code>optim</code></td><td>adamw_8bit</td><td>8-bit optimizer state</td></tr>
+<tr><td><code>per_device_batch / grad_accum</code></td><td>2 / 4</td><td>Effective batch of 8 — tune via <code>info</code></td></tr>
+<tr><td><code>use_liger_kernel</code></td><td>true</td><td>Fused kernels when installed, ignored otherwise</td></tr>
+</table></section>
+
+<section class="section"><h2>5 · API reference</h2><p class="sub">One module per job.</p>
+<table class="spec">
+<tr><th>Module</th><th>Use it for</th></tr>
+<tr><td><code>modetrains.config</code></td><td><code>ModeTrainsConfig</code>, <code>LoraConfig</code>, <code>QuantConfig</code></td></tr>
+<tr><td><code>modetrains.models</code></td><td><code>FastModel.from_pretrained</code> · <code>get_peft_model</code> · <code>for_inference</code></td></tr>
+<tr><td><code>modetrains.data</code></td><td><code>format_alpaca</code> · <code>format_chat</code> · <code>load_chat_dataset</code> · <code>pack_dataset</code></td></tr>
+<tr><td><code>modetrains.trainers</code></td><td><code>train_sft</code> · <code>train_dpo</code> · <code>train_grpo</code></td></tr>
+<tr><td><code>modetrains.export</code></td><td><code>save_merged</code> · <code>push_to_hub_helper</code> · GGUF notes</td></tr>
+<tr><td><code>modetrains.infer</code></td><td><code>generate</code> · <code>chat</code> with KV-cache</td></tr>
+<tr><td><code>modetrains.utils</code></td><td><code>get_device_info</code> · <code>estimate_vram</code> · <code>auto_batch_size</code></td></tr>
+</table>
+<div class="notice" style="margin-top:16px">Tip: run <b>python -m modetrains info</b> first — it reports your GPU and the estimated VRAM for training vs inference.</div></section>
+
+<section class="section"><h2>6 · Next steps</h2>
+<div class="steps">
+<div><b>Examples</b> — open <code>examples/quickstart.py</code> in the repo for a complete runnable script.</div>
+<div><b>Tests</b> — <code>python tests/test_modetrains.py</code> validates the logic without any GPU.</div>
+<div><b>Releases</b> — watch <a href="https://github.com/salim-studio/modetrains/releases" style="color:#4F46E5"><b>GitHub Releases</b></a> for new versions.</div>
+</div></section>
+</div>
+<footer><div class="wrap"><div class="footer-brand"><img src="assets/logo.svg" alt="modetrains logo"><b>modetrains</b> — Fast, memory-efficient LLM fine-tuning</div><br><a href="index.html">Home</a> · <a href="guide.html">Guide</a> · <a href="https://github.com/salim-studio/modetrains">GitHub</a><br><br><span class="copyright">Copyright © 2026 salim-slimani. All rights reserved.</span></div></footer>
+<script>
+document.querySelectorAll(".copybtn").forEach(b=>b.addEventListener("click",()=>{
+ navigator.clipboard.writeText(document.getElementById(b.dataset.copy).innerText);
+ b.textContent="Copied!";setTimeout(()=>b.textContent="Copy",1500);
+}));
+</script>
+</body></html>

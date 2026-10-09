@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>modetrains — Fast, Memory-Efficient LLM Fine-Tuning</title>
+<meta name="description" content="modetrains by Salim Slimani — fast, memory-efficient LLM fine-tuning. 4-bit QLoRA, Flash attention, sequence packing, SFT/DPO/GRPO.">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+<div class="sites"><span>modetrains</span><a href="https://salim-studio.github.io/text_tools/">TEXT</a><a href="https://salim-studio.github.io/pdf-suite/">PDF</a><a href="https://github.com/salim-studio/modetrains">GitHub</a></div>
+<div>v0.1.0 · MIT</div>
+</div></div>
+<header class="nav"><div class="wrap">
+<a class="logo" href="index.html"><img src="assets/logo.svg" alt="modetrains logo">mode<span>trains</span></a>
+<div class="navlinks">
+<a class="btn ghost" href="guide.html">Read the guide</a>
+<a class="btn ghost" href="https://github.com/salim-studio/modetrains">GitHub</a>
+</div></div></header>
+<section class="hero"><div class="wrap">
+<span class="badge">Fast, memory-efficient LLM fine-tuning</span>
+<h1>Fine-tune LLMs 2–3x faster with 70% less VRAM</h1>
+<p>modetrains by Salim Slimani — 4-bit QLoRA, Flash / SDPA attention, sequence packing, 8-bit optimizers, SFT · DPO · GRPO. Open source, no sign-up, runs on your own GPU.</p>
+<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+<a class="btn" href="guide.html">Get started</a>
+<a class="btn ghost" href="#why">Why modetrains</a>
+</div>
+<div class="brand-hero"><img src="assets/hero.svg" alt="modetrains training visual"></div>
+</div></section>
+
+<div class="wrap">
+<section class="section" id="why"><h2>Why modetrains</h2><p class="sub">Six techniques working together for maximum throughput.</p><div class="grid" id="whyGrid"></div></section>
+<section class="section"><h2>Quickstart in 30 seconds</h2><p class="sub">Three steps from install to trained model.</p>
+<div class="codewrap"><button class="copybtn" data-copy="q1">Copy</button><pre class="code" id="q1">pip install torch --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements.txt
+pip install -e .
+python -m modetrains info</pre></div>
+<div class="codewrap"><button class="copybtn" data-copy="q2">Copy</button><pre class="code" id="q2"><span class="k">from</span> modetrains <span class="k">import</span> ModeTrainsConfig, FastModel, train_sft, save_merged
+<span class="k">from</span> modetrains.data <span class="k">import</span> load_chat_dataset
+
+cfg = ModeTrainsConfig.<span class="f">fast_default</span>(<span class="s">"meta-llama/Meta-Llama-3-8B-Instruct"</span>)
+model, tok = FastModel.<span class="f">from_pretrained</span>(cfg)
+model = FastModel.<span class="f">get_peft_model</span>(model, cfg)
+
+ds = <span class="f">load_chat_dataset</span>(<span class="s">"yahma/alpaca-cleaned"</span>, split=<span class="s">"train[:1000]"</span>)
+trainer, stats = <span class="f">train_sft</span>(model, tok, ds, cfg, dataset_text_field=<span class="s">"text"</span>)
+<span class="f">save_merged</span>(model, tok, <span class="s">"outputs"</span>)</pre></div>
+<div style="text-align:center;margin-top:18px"><a class="btn" href="guide.html">Full guide with CLI + API</a></div></section>
+<section class="section"><h2>What you can do</h2>
+<div class="feat" id="feat1"></div></section>
+<section class="section faq"><h2>FAQ</h2><div id="faqBox"></div></section>
+</div>
+<footer><div class="wrap"><div class="footer-brand"><img src="assets/logo.svg" alt="modetrains logo"><b>modetrains</b> — Fast, memory-efficient LLM fine-tuning</div><br><a href="index.html">Home</a> · <a href="guide.html">Guide</a> · <a href="https://github.com/salim-studio/modetrains">GitHub</a><br><br><span class="copyright">Copyright © 2026 salim-slimani. All rights reserved.</span></div></footer>
+<script>
+const WHY=[
+ ["4-bit","4-bit NF4 double-quantized loading for ~70% less VRAM. Train 7–8B models on consumer GPUs.","−70% VRAM"],
+ ["⚡","Flash Attention 2 with automatic SDPA fallback — faster steps, lower memory, zero config.","Auto"],
+ ["📦","Sequence packing plus length-grouped batches: near-zero padding, up to 2–3x throughput.","2–3x"],
+ ["🧠","Non-reentrant gradient checkpointing and optional Liger fused kernels for norms and loss.","−40% VRAM"],
+ ["🪶","AdamW 8-bit / paged optimizers and rsLoRA adapters: smaller optimizer state, free accuracy.","8-bit"],
+ ["🛠️","SFT, DPO and GRPO trainers plus one-command merge, Hub push and GGUF export notes.","SFT·DPO·GRPO"]
+];
+whyGrid.innerHTML=WHY.map(w=>`<div class="card"><h3 style="font-size:26px;margin:0">${w[0]}</h3><h3>${w[0]==="4-bit"?"4-bit QLoRA":w[0]==="⚡"?"Flash attention":w[0]==="📦"?"Packing":w[0]==="🧠"?"Smart memory":w[0]==="🪶"?"Light optimizers":"Complete toolkit"}</h3><p>${w[1]}</p><span class="pill ok">${w[2]}</span></div>`).join("");
+const feats=["Supervised fine-tuning with packing in one call","Preference tuning with DPO on chosen / rejected pairs","Reward-based GRPO when your TRL supports it","Merge LoRA adapters and push to the Hub","Train and generate from a clean CLI","Fast KV-cached inference with chat templates"];
+feat1.innerHTML=feats.map(f=>`<div>✅ ${f}</div>`).join("");
+const faqs=[["Is modetrains free?","Yes. MIT-licensed and open source — free for personal and commercial use."],["What do I need to run it?","Python 3.9+, PyTorch, and optionally a CUDA GPU. CPU works for setup and tests."],["Which models are supported?","Any causal-LM on the Hugging Face Hub: Llama, Qwen, Gemma, Mistral and more."],["How is it faster?","4-bit loading, Flash/SDPA attention, sequence packing, checkpointing and 8-bit optimizers combine for 2–3x throughput at ~70% less VRAM."],["Where is the code?","Everything lives at github.com/salim-studio/modetrains — library, examples, tests and this site."]];
+faqBox.innerHTML=faqs.map(f=>`<details><summary><b>${f[0]}</b></summary><p>${f[1]}</p></details>`).join("");
+document.querySelectorAll(".copybtn").forEach(b=>b.addEventListener("click",()=>{
+ navigator.clipboard.writeText(document.getElementById(b.dataset.copy).innerText);
+ b.textContent="Copied!";setTimeout(()=>b.textContent="Copy",1500);
+}));
+</script>
+</body></html>
