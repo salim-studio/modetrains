@@ -45,7 +45,7 @@ desktop\build_exe.bat
 
 1. Build `dist\ModeTrains.exe` (above).
 2. Install Inno Setup 6 and run `iscc desktop\windows-installer.iss`.
-3. Ship `ModeTrains-Setup-0.2.0.exe`.
+3. Ship `ModeTrains-Setup-0.2.1.exe`.
 
 ## Smoke test (headless, CI-friendly)
 

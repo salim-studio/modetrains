@@ -51,12 +51,36 @@ def test_info_command():
 
 
 def test_version():
-    assert d.APP_VERSION == "0.2.0"
+    assert d.APP_VERSION == "0.2.1"
     assert d.APP_NAME == "ModeTrains Desktop"
+
+
+def test_frozen_guard():
+    # Source run: never refuse.
+    assert d.is_frozen() is False
+    assert d.should_refuse_args(["app", "-m", "modetrains", "info"]) is False
+    # Simulated frozen run.
+    sys.frozen = True
+    try:
+        assert d.is_frozen() is True
+        assert d.should_refuse_args(["app"]) is False
+        assert d.should_refuse_args(["app", "--self-test"]) is False
+        assert d.should_refuse_args(["app", "-m", "modetrains", "info"]) is True
+        assert d.should_refuse_args(["app", "-c", "x"]) is True
+    finally:
+        del sys.frozen
+
+
+def test_find_backend_no_crash():
+    b = d.find_backend_python(timeout=120)
+    assert b is None or isinstance(b, str)
+    if b is not None and d.is_frozen():
+        assert os.path.abspath(b) != os.path.abspath(sys.executable)
 
 
 if __name__ == "__main__":
     for fn in [test_train_command, test_train_validation, test_infer_command,
-               test_info_command, test_version]:
+               test_info_command, test_version, test_frozen_guard,
+               test_find_backend_no_crash]:
         fn(); print(f"PASS {fn.__name__}")
     print("ALL DESKTOP TESTS PASSED")

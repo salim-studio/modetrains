@@ -13,13 +13,15 @@ Copyright (c) 2026 salim-slimani. MIT license.
 from __future__ import annotations
 
 import json
+import os
 import queue
+import shutil
 import subprocess
 import sys
 import threading
 
 APP_NAME = "ModeTrains Desktop"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.1"
 BRAND = "#4F46E5"
 BRAND2 = "#06B6D4"
 BG = "#F1F5F9"
@@ -30,9 +32,92 @@ DEFAULT_MODEL = "meta-llama/Meta-Llama-3-8B-Instruct"
 # Headless-safe logic (importable and testable without a display)
 # ---------------------------------------------------------------------------
 
+def is_frozen() -> bool:
+    """True when running inside the PyInstaller .exe bundle."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def should_refuse_args(argv: list[str]) -> bool:
+    """True when a frozen exe was (mis)launched as a Python interpreter.
+
+    Example: ``ModeTrains.exe -m modetrains info``. Opening the GUI here
+    would spawn another copy, which spawns another one, forever — so the
+    caller must exit instead of launching.
+    """
+    if not is_frozen():
+        return False
+    for a in argv[1:]:
+        if a == "--self-test":
+            continue
+        if a.startswith("-"):
+            return True
+    return False
+
+
 def find_python() -> str:
-    """Python interpreter used to run the modetrains CLI."""
+    """Default interpreter for command building (source runs).
+
+    WARNING: inside the frozen .exe this returns the app itself — never
+    use it to run ``-m modetrains`` there. Use require_backend() instead.
+    """
     return sys.executable or "python"
+
+
+def find_backend_python(timeout: int = 60) -> str | None:
+    """Locate a REAL Python able to run ``python -m modetrains``.
+
+    Skips the frozen exe itself (using it as backend re-opens the GUI in
+    an endless cascade). Returns None when no backend is available.
+    """
+    candidates: list[str] = []
+    env = os.environ.get("MODETRAINS_PYTHON")
+    if env:
+        candidates.append(env)
+    if not is_frozen() and sys.executable:
+        candidates.append(sys.executable)
+    for name in ("python", "python3", "py"):
+        p = shutil.which(name)
+        if p and p not in candidates:
+            candidates.append(p)
+    # venvs next to the app or the current directory
+    base_dirs = {os.path.dirname(os.path.abspath(sys.executable))}
+    try:
+        base_dirs.add(os.getcwd())
+    except Exception:
+        pass
+    for base in base_dirs:
+        for rel in (os.path.join(".venv-desktop", "Scripts", "python.exe"),
+                    os.path.join(".venv-desktop", "bin", "python"),
+                    os.path.join(".venv", "Scripts", "python.exe"),
+                    os.path.join(".venv", "bin", "python")):
+            p = os.path.join(base, rel)
+            if os.path.isfile(p) and p not in candidates:
+                candidates.append(p)
+    frozen_exe = os.path.abspath(sys.executable) if is_frozen() else None
+    for cand in candidates:
+        try:
+            if frozen_exe and os.path.abspath(cand) == frozen_exe:
+                continue  # never use the app itself as backend
+            r = subprocess.run([cand, "-c", "import modetrains; print('mt-ok')"],
+                               capture_output=True, text=True, timeout=timeout)
+            if r.returncode == 0 and "mt-ok" in r.stdout:
+                return cand
+        except Exception:
+            continue
+    return None
+
+
+def require_backend() -> str:
+    """Backend python or a clear, actionable error (shown, not crashed on)."""
+    backend = find_backend_python()
+    if backend is None:
+        raise RuntimeError(
+            "No Python backend with the modetrains library was found.\n\n"
+            "Install Python 3.9+, then run:\n"
+            "  pip install -r requirements.txt\n"
+            "  pip install -e .\n\n"
+            "Tip: set MODETRAINS_PYTHON to your python.exe to point at it directly.")
+    return backend
 
 
 def build_info_command(python: str | None = None) -> list[str]:
@@ -128,7 +213,7 @@ class JobRunner:
 def self_test() -> int:
     """Headless smoke test: no display needed. Returns process exit code."""
     checks = []
-    checks.append(("version", APP_VERSION == "0.2.0"))
+    checks.append(("version", APP_VERSION == "0.2.1"))
     c = build_train_command("m", "d")
     checks.append(("train-cmd", c[:3] == [find_python(), "-m", "modetrains"] and "--steps" in c))
     c2 = build_infer_command("m", "hello", tokens=32)
@@ -145,10 +230,27 @@ def self_test() -> int:
         checks.append(("validation", False))
     except ValueError:
         checks.append(("validation", True))
+    # Re-exec guard: frozen + interpreter flags must refuse (simulated).
+    checks.append(("refuse-src", should_refuse_args(["app", "-m", "x"]) is False))
+    sys.frozen = True  # type: ignore[attr-defined]
+    try:
+        checks.append(("refuse-gui", should_refuse_args(["app"]) is False))
+        checks.append(("refuse-selftest", should_refuse_args(["app", "--self-test"]) is False))
+        checks.append(("refuse-m", should_refuse_args(["app", "-m", "modetrains", "info"]) is True))
+    finally:
+        del sys.frozen  # type: ignore[attr-defined]
+    # Backend probe must never crash and must never return the frozen exe.
+    try:
+        b = find_backend_python(timeout=120)
+        checks.append(("backend", b is None or isinstance(b, str)))
+        print(f"INFO backend={b}")
+    except Exception as e:
+        print(f"FAIL backend raised {e}")
+        checks.append(("backend", False))
     ok = True
     for name, passed in checks:
         print(f"{'PASS' if passed else 'FAIL'} selftest:{name}")
-        ok = ok and passed
+        ok = ok and bool(passed)
     print("SELF-TEST " + ("OK " + APP_VERSION if ok else "FAILED"))
     return 0 if ok else 1
 
@@ -204,8 +306,10 @@ def launch_gui():  # pragma: no cover — requires a display
             self._build_train()
             self._build_infer()
             self._build_info()
-            tk.Label(self, text="© 2026 salim-slimani · MIT",
+            self.status_var = tk.StringVar(value="© 2026 salim-slimani · MIT  ·  backend: checking…")
+            tk.Label(self, textvariable=self.status_var,
                      bg=BG, fg="#64748B", font=("Segoe UI", 8)).pack(side="bottom", pady=4)
+            threading.Thread(target=self._detect_backend, daemon=True).start()
 
         def _field(self, parent, row, label, default="", width=52):
             ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=8, pady=4)
@@ -254,10 +358,16 @@ def launch_gui():  # pragma: no cover — requires a display
 
         def _start_train(self):
             try:
+                backend = require_backend()
+            except RuntimeError as e:
+                messagebox.showerror(APP_NAME, str(e))
+                return
+            try:
                 cmd = build_train_command(
                     self.t_model.get(), self.t_data.get(), steps=int(self.t_steps.get()),
                     batch=int(self.t_batch.get()), accum=int(self.t_accum.get()),
-                    max_seq=int(self.t_seq.get()), out=self.t_out.get())
+                    max_seq=int(self.t_seq.get()), out=self.t_out.get(),
+                    python=backend)
             except ValueError as e:
                 messagebox.showerror(APP_NAME, str(e))
                 return
@@ -297,10 +407,16 @@ def launch_gui():  # pragma: no cover — requires a display
 
         def _start_infer(self):
             try:
+                backend = require_backend()
+            except RuntimeError as e:
+                messagebox.showerror(APP_NAME, str(e))
+                return
+            try:
                 tokens = int(self.i_tokens.get())
                 cmd = build_infer_command(self.i_model.get(),
                                           self.i_prompt.get("1.0", "end"),
-                                          tokens=tokens, full=self.i_full.get())
+                                          tokens=tokens, full=self.i_full.get(),
+                                          python=backend)
             except ValueError as e:
                 messagebox.showerror(APP_NAME, str(e))
                 return
@@ -323,19 +439,39 @@ def launch_gui():  # pragma: no cover — requires a display
             self._refresh_info()
 
         def _refresh_info(self):
-            self._append(self.info_log, "$ " + " ".join(build_info_command()) + "\n")
+            self._append(self.info_log, "Refreshing hardware info…\n")
+            threading.Thread(target=self._refresh_info_bg, daemon=True).start()
+
+        def _refresh_info_bg(self):
             try:
-                out = subprocess.run(build_info_command(), capture_output=True,
-                                     text=True, timeout=120).stdout or "(no output)"
+                backend = require_backend()
+            except RuntimeError as e:
+                self.after(0, self._append, self.info_log, str(e) + "\n")
+                return
+            cmd = build_info_command(python=backend)
+            self.after(0, self._append, self.info_log, "$ " + " ".join(cmd) + "\n")
+            try:
+                out = subprocess.run(cmd, capture_output=True,
+                                     text=True, timeout=180).stdout or "(no output)"
             except Exception as e:
                 out = f"[error] {e}"
             try:
                 out = json.dumps(json.loads(out.split("}\n{")[0] + "}"), indent=2)
             except Exception:
                 pass
-            self._append(self.info_log, out + "\n")
+            self.after(0, self._append, self.info_log, out + "\n")
 
         # -- shared ------------------------------------------------------
+        def _detect_backend(self):
+            backend = find_backend_python()
+            msg = (f"© 2026 salim-slimani · MIT  ·  backend: {backend}"
+                   if backend else
+                   "© 2026 salim-slimani · MIT  ·  backend: MISSING — install Python + requirements")
+            try:
+                self.after(0, self.status_var.set, msg)
+            except Exception:
+                pass
+
         def _append(self, box, text):
             box.configure(state="normal")
             box.insert("end", text)
@@ -374,4 +510,12 @@ def launch_gui():  # pragma: no cover — requires a display
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(self_test())
+    if should_refuse_args(sys.argv):
+        # Launched as `ModeTrains.exe -m ...`: this is the GUI bundle, not a
+        # Python interpreter. Exiting here breaks the window cascade.
+        sys.stderr.write(
+            "[modetrains] This is the ModeTrains desktop app, not a Python "
+            "interpreter. Open the app with no arguments, or point it at a "
+            "real Python via the MODETRAINS_PYTHON environment variable.\n")
+        sys.exit(2)
     launch_gui()

@@ -3,7 +3,7 @@
 ;   iscc desktop\windows-installer.iss
 ; Copyright (c) 2026 salim-slimani. MIT license.
 #define MyAppName "ModeTrains Desktop"
-#define MyAppVersion "0.2.0"
+#define MyAppVersion "0.2.1"
 #define MyAppPublisher "salim-slimani"
 
 [Setup]
