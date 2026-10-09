@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+outputs/
+outputs-mt/
+.wandb/
+.lightning/
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/

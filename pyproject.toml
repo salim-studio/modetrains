@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modetrains"
+version = "0.1.0"
+description = "Fast LLM fine-tuning library (Unsloth-like): 4-bit QLoRA + Flash + Packing"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+keywords = ["llm", "fine-tuning", "lora", "qlora", "unsloth"]
+dependencies = [
+  "torch>=2.2",
+  "transformers>=4.40",
+  "peft>=0.10",
+  "trl>=0.8",
+  "accelerate>=0.30",
+  "bitsandbytes>=0.43",
+  "datasets>=2.19",
+  "sentencepiece",
+  "protobuf",
+]
+
+[project.optional-dependencies]
+speed = ["flash-attn", "liger-kernel"]
+full = ["flash-attn", "liger-kernel", "optimum"]
+
+[project.scripts]
+modetrains = "modetrains.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["modetrains*"]
