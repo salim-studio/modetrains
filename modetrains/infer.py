@@ -1,4 +1,7 @@
-"""استدلال سريع: generate + chat مع KV-cache و torch.compile اختياري."""
+"""Fast inference: generate + chat with KV-cache and optional torch.compile.
+
+Copyright (c) 2026 salim-slimani.
+"""
 from __future__ import annotations
 
 
@@ -7,7 +10,7 @@ def generate(model, tokenizer, prompt: str, max_new_tokens: int = 256,
     try:
         import torch
     except Exception as e:
-        raise ImportError("torch غير مثبت. ثبّت: pip install torch") from e
+        raise ImportError("torch is not installed. Run: pip install torch") from e
     from .models import FastModel
     model = FastModel.for_inference(model)
     inputs = tokenizer(prompt, return_tensors="pt")
@@ -22,7 +25,7 @@ def generate(model, tokenizer, prompt: str, max_new_tokens: int = 256,
                              do_sample=do_sample, use_cache=True,
                              pad_token_id=tokenizer.eos_token_id)
     text = tokenizer.decode(out[0], skip_special_tokens=True)
-    # أعد فقط التكملة
+    # Return only the continuation
     if text.startswith(prompt):
         return text[len(prompt):].lstrip()
     return text

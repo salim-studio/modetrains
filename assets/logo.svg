@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#0B0E1A"/>
+  <rect x="14" y="14" width="228" height="228" rx="46" fill="none" stroke="url(#g)" stroke-width="6" opacity="0.35"/>
+  <!-- Stylized M formed by two speed rails -->
+  <path d="M52 184 L52 84 L106 142 L128 118 L150 142 L204 84 L204 184"
+        fill="none" stroke="url(#g)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Speed lines -->
+  <line x1="52" y1="204" x2="140" y2="204" stroke="#06B6D4" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+  <line x1="52" y1="222" x2="104" y2="222" stroke="#4F46E5" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+  <circle cx="188" cy="213" r="11" fill="url(#g)"/>
+</svg>

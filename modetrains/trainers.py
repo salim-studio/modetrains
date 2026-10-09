@@ -1,4 +1,7 @@
-"""التدريب: SFT + DPO فوق TRL مع إعدادات السرعة."""
+"""Training loops: SFT + DPO + GRPO on top of TRL with speed presets.
+
+Copyright (c) 2026 salim-slimani.
+"""
 from __future__ import annotations
 from .config import ModeTrainsConfig
 
@@ -28,14 +31,14 @@ def _training_args(cfg: ModeTrainsConfig):
         output_dir=cfg.output_dir,
         save_steps=cfg.save_steps,
         save_total_limit=2,
-        group_by_length=True,  # ترتيب حسب الطول = أقل حشو = أسرع
+        group_by_length=True,  # sort by length: less padding, faster steps
         dataloader_num_workers=2,
         report_to="none",
     )
 
 
 def train_sft(model, tokenizer, dataset, cfg: ModeTrainsConfig, **sft_kwargs):
-    """تدريب SFT سريع. dataset يجب أن يحوي عمود text (أو حسب text_field)."""
+    """Fast SFT run. The dataset must expose a text column (see text_field)."""
     from trl import SFTTrainer
     args = _training_args(cfg)
     trainer = SFTTrainer(
@@ -53,9 +56,8 @@ def train_sft(model, tokenizer, dataset, cfg: ModeTrainsConfig, **sft_kwargs):
 
 
 def train_dpo(model, tokenizer, dataset, cfg: ModeTrainsConfig, beta: float = 0.1):
-    """تدريب DPO (chosen/rejected). dataset: أعمدة prompt/chosen/rejected."""
+    """DPO run (prompt / chosen / rejected columns)."""
     from trl import DPOTrainer, DPOConfig
-    from transformers import TrainingArguments  # noqa
     args = DPOConfig(
         output_dir=cfg.output_dir,
         per_device_train_batch_size=cfg.per_device_batch,
@@ -77,11 +79,11 @@ def train_dpo(model, tokenizer, dataset, cfg: ModeTrainsConfig, beta: float = 0.
 
 
 def train_grpo(model, tokenizer, dataset, cfg: ModeTrainsConfig, reward_fn=None, **kw):
-    """GRPO إن توفر في نسخة TRL، وإلا رسالة واضحة."""
+    """GRPO run when the installed TRL version supports it."""
     try:
         from trl import GRPOTrainer, GRPOConfig
     except Exception as e:
-        raise ImportError("نسخة TRL الحالية لا تدعم GRPO. حدّث trl>=0.9") from e
+        raise ImportError("The installed TRL version has no GRPO support. Upgrade to trl>=0.9.") from e
     args = GRPOConfig(output_dir=cfg.output_dir, max_steps=cfg.max_steps,
                       per_device_train_batch_size=cfg.per_device_batch,
                       gradient_accumulation_steps=cfg.grad_accum,

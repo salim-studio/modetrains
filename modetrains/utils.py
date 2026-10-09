@@ -1,4 +1,7 @@
-"""أدوات مساعدة: كشف العتاد، تقدير VRAM، تسريعات عامة."""
+"""Helpers: hardware detection, VRAM estimates, generic speedups.
+
+Copyright (c) 2026 salim-slimani.
+"""
 from __future__ import annotations
 import os, random, platform
 
@@ -40,7 +43,7 @@ def get_device_info() -> dict:
 
 
 def pick_dtype(prefer: str | None = None) -> str:
-    """اختيار auto: bf16 إن دُعم وإلا fp16."""
+    """Auto dtype: bfloat16 when supported, else float16."""
     if prefer in ("bfloat16", "float16"):
         return prefer
     try:
@@ -53,18 +56,18 @@ def pick_dtype(prefer: str | None = None) -> str:
 
 
 def estimate_vram(model_name: str, load_in_4bit: bool, max_seq: int, lora_r: int = 16) -> dict:
-    """تقدير تقريبي (قاعدة تجريبية) — يساعد المستخدم قبل التحميل."""
-    base = 4.0 if load_in_4bit else 14.0  # GB لنموذج ~7-8B
+    """Rough empirical estimate (7-8B class) — check before loading."""
+    base = 4.0 if load_in_4bit else 14.0  # GB for a ~7-8B model
     seq_factor = max_seq / 2048.0
     lora_factor = 0.3 + (lora_r / 64.0)
     train_gb = round(base + 2.5 * seq_factor + lora_factor, 2)
     infer_gb = round(base * 0.7 + 0.5 * seq_factor, 2)
     return {"train_need_gb": train_gb, "infer_need_gb": infer_gb,
-            "note": "تقدير تقريبي لنموذج 7-8B. النماذج الأكبر تحتاج أكثر."}
+            "note": "Rough estimate for 7-8B models. Larger models need more."}
 
 
 def auto_batch_size(vram_gb: float | None, seq_len: int) -> tuple[int, int]:
-    """تخمين batch/accum حسب الذاكرة المتاحة."""
+    """Guess (batch, accum) from the available VRAM."""
     if vram_gb is None or vram_gb < 8:
         return (1, 8) if seq_len > 2048 else (2, 4)
     if vram_gb < 16:
@@ -75,7 +78,7 @@ def auto_batch_size(vram_gb: float | None, seq_len: int) -> tuple[int, int]:
 
 
 def enable_speedups(use_torch_compile: bool = False, model=None):
-    """تفعيل تسريعات PyTorch العامة (matmul precision + TF32 + compile اختياري)."""
+    """Enable generic PyTorch speedups (matmul precision + TF32 + optional compile)."""
     try:
         import torch
         torch.set_float32_matmul_precision("high")

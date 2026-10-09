@@ -1,6 +1,8 @@
-"""تحميل النماذج بسرعة: 4bit + Flash/SDPA + RoPE + Gradient Checkpointing + Liger."""
+"""Fast model loading: 4-bit + Flash/SDPA + RoPE + gradient checkpointing + Liger.
+
+Copyright (c) 2026 salim-slimani.
+"""
 from __future__ import annotations
-from typing import Tuple
 from .config import ModeTrainsConfig
 from .utils import pick_dtype, enable_speedups
 
@@ -10,7 +12,7 @@ def _resolve_attn(cfg: ModeTrainsConfig) -> str | None:
         return None if cfg.attn_implementation == "eager" else cfg.attn_implementation
     if not cfg.use_flash_attn:
         return "sdpa"
-    # auto: جرّب flash_attention_2 ثم sdpa
+    # auto: prefer flash_attention_2, fall back to sdpa
     try:
         import flash_attn  # noqa: F401
         return "flash_attention_2"
@@ -41,11 +43,11 @@ def _build_bnb_config(cfg: ModeTrainsConfig):
 
 
 class FastModel:
-    """واجهة بأسلوب Unsloth: FastModel.from_pretrained + get_peft_model."""
+    """Primary entry point: FastModel.from_pretrained + get_peft_model."""
 
     @staticmethod
     def from_pretrained(cfg: ModeTrainsConfig):
-        """تحميل نموذج + tokenizer جاهزين للتدريب السريع.
+        """Load a model + tokenizer ready for fast training.
 
         Returns: (model, tokenizer)
         """
@@ -78,7 +80,7 @@ class FastModel:
             except Exception:
                 pass
 
-        # — تسريع 1: gradient checkpointing بأسلوب unsloth —
+        # Speedup 1: memory-efficient gradient checkpointing
         if cfg.gradient_checkpointing:
             try:
                 model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
@@ -91,7 +93,7 @@ class FastModel:
         else:
             model.config.use_cache = True
 
-        # — تسريع 2: Liger kernels (RMSNorm/RoPE/SwiGLU مدمجة) إن توفرت —
+        # Speedup 2: fused Liger kernels (RMSNorm / RoPE / SwiGLU) when installed
         if cfg.use_liger_kernel:
             try:
                 from liger_kernel.transformers import _apply_liger_kernel
@@ -99,14 +101,13 @@ class FastModel:
             except Exception:
                 try:
                     import liger_kernel.transformers as _lk  # noqa: F401
-                    # نسخ قديمة: monkey_patch
                     from liger_kernel.transformers import monkey_patch as _mp
                     if hasattr(_mp, "apply_liger_kernel_to_llama"):
                         _mp.apply_liger_kernel_to_llama()
                 except Exception:
                     pass
 
-        # — تسريع 3: torch ops —
+        # Speedup 3: generic torch ops
         enable_speedups(cfg.use_torch_compile, model=None)
         if cfg.use_better_transformer:
             try:
@@ -115,7 +116,7 @@ class FastModel:
             except Exception:
                 pass
 
-        # كشف الدقة الفعلية
+        # Record the effective precision
         try:
             cfg.bf16 = (dtype == torch.bfloat16)
             cfg.fp16 = (dtype == torch.float16)
@@ -125,7 +126,7 @@ class FastModel:
 
     @staticmethod
     def get_peft_model(model, cfg: ModeTrainsConfig):
-        """تركيب LoRA سريع (يدعم rsLoRA + LoftQ)."""
+        """Attach a fast LoRA adapter (supports rsLoRA + LoftQ)."""
         from peft import LoraConfig as _LC, get_peft_model as _get, prepare_model_for_kbit_training
 
         if getattr(model, "is_loaded_in_4bit", False) or getattr(model, "is_loaded_in_8bit", False):
@@ -154,9 +155,8 @@ class FastModel:
 
     @staticmethod
     def for_inference(model):
-        """وضع الاستدلال: cache + eval + (اختياري) compile."""
+        """Switch a trained model to inference mode (KV-cache + eval)."""
         try:
-            import torch
             model.eval()
             if hasattr(model.config, "use_cache"):
                 model.config.use_cache = True

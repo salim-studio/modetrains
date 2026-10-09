@@ -1,4 +1,9 @@
-"""modetrains — مكتبة تدريب LLM سريعة وموفرة للذاكرة (شبيهة بـ Unsloth)."""
+"""modetrains — fast, memory-efficient LLM fine-tuning.
+
+Official library by salim-slimani. Open-source building blocks for
+4-bit QLoRA training with Flash/SDPA attention, sequence packing,
+gradient checkpointing and 8-bit optimizers.
+"""
 from .config import ModeTrainsConfig, LoraConfig, QuantConfig
 from .models import FastModel
 from .data import format_alpaca, format_chat, pack_dataset, load_chat_dataset
@@ -14,6 +19,8 @@ from .utils import (
 )
 
 __version__ = "0.1.0"
+__author__ = "salim-slimani"
+__copyright__ = "Copyright (c) 2026 salim-slimani"
 __all__ = [
     "ModeTrainsConfig", "LoraConfig", "QuantConfig",
     "FastModel",

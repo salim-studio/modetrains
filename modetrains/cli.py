@@ -1,7 +1,10 @@
-"""سطر أوامر modetrains: train / infer / info."""
+"""modetrains CLI: train / infer / info.
+
+Copyright (c) 2026 salim-slimani.
+"""
 from __future__ import annotations
 import argparse, json
-from .config import ModeTrainsConfig
+from .config import ModeTrainsConfig, DEFAULT_MODEL
 from .utils import get_device_info, estimate_vram
 
 
@@ -19,12 +22,12 @@ def cmd_train(a):
     cfg = ModeTrainsConfig(model_name=a.model, max_seq_length=a.max_seq,
                            max_steps=a.steps, output_dir=a.out,
                            per_device_batch=a.batch, grad_accum=a.accum)
-    print(f"[modetrains] تحميل {cfg.model_name} ...")
+    print(f"[modetrains] Loading {cfg.model_name} ...")
     model, tok = FastModel.from_pretrained(cfg)
     model = FastModel.get_peft_model(model, cfg)
-    print(f"[modetrains] dataset: {a.data}")
+    print(f"[modetrains] Dataset: {a.data}")
     ds = load_chat_dataset(a.data, split=a.split)
-    # توحيد عمود text إن لزم
+    # Normalize to a text column when needed
     if "text" not in ds.column_names:
         def _map(ex):
             if "messages" in ex:
@@ -38,7 +41,7 @@ def cmd_train(a):
     trainer, stats = train_sft(model, tok, ds, cfg, dataset_text_field="text")
     print(stats)
     save_merged(model, tok, a.out)
-    print(f"[modetrains] تم الحفظ في {a.out}")
+    print(f"[modetrains] Saved to {a.out}")
 
 
 def cmd_infer(a):
@@ -50,15 +53,20 @@ def cmd_infer(a):
 
 
 def build_parser():
-    p = argparse.ArgumentParser(prog="modetrains", description="Fast LLM training (Unsloth-like)")
+    p = argparse.ArgumentParser(prog="modetrains",
+                                description="modetrains — fast, memory-efficient LLM fine-tuning.")
     sub = p.add_subparsers(dest="cmd", required=True)
-    s = sub.add_parser("info"); s.set_defaults(fn=cmd_info)
-    t = sub.add_parser("train"); t.set_defaults(fn=cmd_train)
-    t.add_argument("--model", required=True); t.add_argument("--data", required=True)
+    s = sub.add_parser("info", help="Show hardware info and VRAM estimates")
+    s.set_defaults(fn=cmd_info)
+    t = sub.add_parser("train", help="Fine-tune a model with QLoRA")
+    t.set_defaults(fn=cmd_train)
+    t.add_argument("--model", default=DEFAULT_MODEL)
+    t.add_argument("--data", required=True)
     t.add_argument("--split", default="train"); t.add_argument("--out", default="outputs")
     t.add_argument("--max-seq", type=int, default=2048); t.add_argument("--steps", type=int, default=60)
     t.add_argument("--batch", type=int, default=2); t.add_argument("--accum", type=int, default=4)
-    i = sub.add_parser("infer"); i.set_defaults(fn=cmd_infer)
+    i = sub.add_parser("infer", help="Generate text with a trained model")
+    i.set_defaults(fn=cmd_infer)
     i.add_argument("--model", required=True); i.add_argument("--prompt", required=True)
     i.add_argument("--tokens", type=int, default=256); i.add_argument("--full", action="store_true")
     return p

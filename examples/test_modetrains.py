@@ -1,4 +1,7 @@
-"""اختبارات خفيفة بدون GPU/torch — تتحقق من المنطق فقط."""
+"""Lightweight logic tests — no GPU / torch required.
+
+Copyright (c) 2026 salim-slimani.
+"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -12,15 +15,15 @@ def test_config():
     assert c.packing and c.load_in_4bit
 
 def test_alpaca():
-    t = format_alpaca("افعل X", "", "تم")
-    assert "التعليمات" in t and "تم" in t
-    t2 = format_alpaca("لخص", "نص", "خلاصة")
-    assert "المدخلات" in t2
+    t = format_alpaca("Do X", "", "Done")
+    assert "Instruction" in t and "Done" in t
+    t2 = format_alpaca("Summarize", "some text", "summary")
+    assert "Input" in t2
 
 def test_chat():
-    msgs = [{"role": "user", "content": "مرحبا"}, {"role": "assistant", "content": "أهلا"}]
+    msgs = [{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi"}]
     t = format_chat(msgs, tokenizer=None, add_generation_prompt=True)
-    assert "مرحبا" in t and "<assistant>" in t
+    assert "Hello" in t and "<assistant>" in t
 
 def test_rows():
     rows = [{"instruction": "i", "input": "", "output": "o"}]

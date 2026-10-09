@@ -5,11 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "modetrains"
 version = "0.1.0"
-description = "Fast LLM fine-tuning library (Unsloth-like): 4-bit QLoRA + Flash + Packing"
+description = "Fast, memory-efficient LLM fine-tuning: 4-bit QLoRA + Flash attention + sequence packing"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "Apache-2.0" }
-keywords = ["llm", "fine-tuning", "lora", "qlora", "unsloth"]
+license = { text = "MIT" }
+authors = [{ name = "salim-slimani" }]
+keywords = ["llm", "fine-tuning", "lora", "qlora", "sft", "dpo"]
 dependencies = [
   "torch>=2.2",
   "transformers>=4.40",

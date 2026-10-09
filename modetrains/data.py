@@ -1,36 +1,43 @@
-"""تحضير البيانات: Alpaca / Chat / Packing — يدعم العربية."""
+"""Dataset preparation: Alpaca / chat / packing helpers.
+
+Copyright (c) 2026 salim-slimani.
+"""
 from __future__ import annotations
 from typing import List, Dict, Any
 
-ALPACA_PROMPT = """أدناه تعليمات تصف مهمة. اكتب ردًا مناسبًا يكمل الطلب.
+ALPACA_PROMPT = """Below is an instruction that describes a task. Write a response that completes the request.
 
-### التعليمات:
+### Instruction:
 {}
 
-### المدخلات:
+### Input:
 {}
 
-### الرد:
+### Response:
 {}"""
 
-ALPACA_NO_INPUT = """أدناه تعليمات تصف مهمة. اكتب ردًا مناسبًا يكمل الطلب.
+ALPACA_NO_INPUT = """Below is an instruction that describes a task. Write a response that completes the request.
 
-### التعليمات:
+### Instruction:
 {}
 
-### الرد:
+### Response:
 {}"""
 
 
 def format_alpaca(instruction: str, inp: str = "", output: str = "") -> str:
+    """Format one example with the Alpaca template."""
     if inp.strip():
         return ALPACA_PROMPT.format(instruction, inp, output)
     return ALPACA_NO_INPUT.format(instruction, output)
 
 
 def format_chat(messages: List[Dict[str, str]], tokenizer=None, add_generation_prompt: bool = False) -> str:
-    """messages = [{"role":"user"/"assistant"/"system", "content": "..."}].
-    يستخدم chat_template إن توفر وإلا تنسيق بسيط."""
+    """Format an OpenAI-style message list.
+
+    messages = [{"role": "user" | "assistant" | "system", "content": "..."}].
+    Uses the tokenizer chat_template when available, else a simple fallback.
+    """
     if tokenizer is not None and getattr(tokenizer, "chat_template", None):
         try:
             return tokenizer.apply_chat_template(messages, tokenize=False,
@@ -52,6 +59,7 @@ def format_chat(messages: List[Dict[str, str]], tokenizer=None, add_generation_p
 
 
 def to_text_rows(rows: List[Dict[str, Any]], mode: str = "alpaca", tokenizer=None) -> List[str]:
+    """Convert raw rows to plain text rows."""
     out = []
     for r in rows:
         if mode == "alpaca":
@@ -61,12 +69,12 @@ def to_text_rows(rows: List[Dict[str, Any]], mode: str = "alpaca", tokenizer=Non
         elif mode == "text":
             out.append(r.get("text", ""))
         else:
-            raise ValueError(f"mode غير معروف: {mode}")
+            raise ValueError(f"Unknown mode: {mode}")
     return out
 
 
 def load_chat_dataset(hf_name_or_path: str, split: str = "train", text_field: str = "text"):
-    """تحميل dataset من HuggingFace أو ملف محلي (json/jsonl/csv)."""
+    """Load a dataset from the Hugging Face Hub or a local file (json/jsonl/csv)."""
     from datasets import load_dataset, load_from_disk
     import os
     if os.path.isdir(hf_name_or_path):
@@ -81,18 +89,16 @@ def load_chat_dataset(hf_name_or_path: str, split: str = "train", text_field: st
 
 
 def pack_dataset(tokenized, seq_length: int = 2048, tokenizer=None):
-    """دمج الرموز (packing) لملء السياق بالكامل — أسرع 2x وأقل حشو.
+    """Pack token streams into full-length blocks: ~2x faster, minimal padding.
 
-    tokenized: dict فيه input_ids (list of lists). يعيد dataset جاهز.
-    يستخدم Batched packing بسيط وفعال بدون اعتماديات إضافية.
+    tokenized: dict with input_ids (list of lists). Returns a torch Dataset.
+    dependency-free batched packing.
     """
     import torch
     from torch.utils.data import Dataset as _D
 
     ids = tokenized["input_ids"]
-    # تسطيح ثم تقطيع
     flat = [t for seq in ids for t in seq]
-    # إسقاط الباقي
     n = (len(flat) // seq_length) * seq_length
     flat = flat[:n]
 
