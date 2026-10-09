@@ -24,6 +24,7 @@
 <p>modetrains by Salim Slimani — 4-bit QLoRA, Flash / SDPA attention, sequence packing, 8-bit optimizers, SFT · DPO · GRPO. Open source, no sign-up, runs on your own GPU.</p>
 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
 <a class="btn" href="guide.html">Get started</a>
+<a class="btn ghost" href="#desktop">Desktop app</a>
 <a class="btn ghost" href="#why">Why modetrains</a>
 </div>
 <div class="brand-hero"><img src="assets/hero.svg" alt="modetrains training visual"></div>
@@ -47,6 +48,15 @@ ds = <span class="f">load_chat_dataset</span>(<span class="s">"yahma/alpaca-clea
 trainer, stats = <span class="f">train_sft</span>(model, tok, ds, cfg, dataset_text_field=<span class="s">"text"</span>)
 <span class="f">save_merged</span>(model, tok, <span class="s">"outputs"</span>)</pre></div>
 <div style="text-align:center;margin-top:18px"><a class="btn" href="guide.html">Full guide with CLI + API</a></div></section>
+<section class="section" id="desktop"><h2>Desktop app</h2><p class="sub">Point, click, train — no terminal needed.</p>
+<div class="grid2">
+<div class="card"><h3>🖥️ ModeTrains Desktop</h3><p>Train, Infer and Hardware tabs with live logs. Standard library only, MIT licensed.</p><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><a class="btn" href="https://github.com/salim-studio/modetrains/releases/latest/download/ModeTrains.exe">Download for Windows</a></div><div class="stats"><span>Portable <b>.exe</b> · no install needed</span></div></div>
+<div class="card"><h3>⚙️ Install it properly</h3><p>One command sets up an isolated environment plus Start Menu shortcuts.</p><div class="codewrap"><button class="copybtn" data-copy="d1">Copy</button><pre class="code" id="d1"><span class="c"># Windows (PowerShell)</span>
+.\desktop\install.ps1
+
+<span class="c"># Linux / macOS</span>
+bash desktop/install.sh</pre></div></div>
+</div></section>
 <section class="section"><h2>What you can do</h2>
 <div class="feat" id="feat1"></div></section>
 <section class="section faq"><h2>FAQ</h2><div id="faqBox"></div></section>

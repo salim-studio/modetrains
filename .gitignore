@@ -10,3 +10,5 @@ outputs-mt/
 *.egg-info/
 dist/
 build/
+*.spec
+.venv-desktop/
